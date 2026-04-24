@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BFHL — Tree Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --card: #1a1a26;
+    --border: #2a2a3a;
+    --accent: #00ffc2;
+    --accent2: #7c5cfc;
+    --accent3: #ff6b6b;
+    --text: #e8e8f0;
+    --muted: #6b6b8a;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid noise texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,194,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,194,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .glow-orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .glow-orb.one {
+    width: 400px; height: 400px;
+    background: rgba(124,92,252,0.15);
+    top: -100px; left: -100px;
+    animation: drift1 12s ease-in-out infinite alternate;
+  }
+  .glow-orb.two {
+    width: 350px; height: 350px;
+    background: rgba(0,255,194,0.1);
+    bottom: -80px; right: -80px;
+    animation: drift2 10s ease-in-out infinite alternate;
+  }
+
+  @keyframes drift1 { to { transform: translate(60px, 80px); } }
+  @keyframes drift2 { to { transform: translate(-60px, -60px); } }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* HEADER */
+  header {
+    text-align: center;
+    margin-bottom: 60px;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid rgba(0,255,194,0.3);
+    padding: 4px 14px;
+    border-radius: 100px;
+    margin-bottom: 20px;
+    background: rgba(0,255,194,0.05);
+  }
+
+  h1 {
+    font-size: clamp(38px, 6vw, 72px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -2px;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 60%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 15px;
+    font-family: var(--mono);
+    letter-spacing: 1px;
+  }
+
+  /* INPUT SECTION */
+  .input-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 32px;
+    animation: fadeUp 0.6s ease 0.1s both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .input-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent), var(--accent2));
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+  }
+
+  @keyframes shimmer { to { background-position: 200% 0; } }
+
+  .input-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+    display: block;
+  }
+
+  .api-url-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .api-url-input {
+    flex: 1;
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .api-url-input:focus { border-color: var(--accent); }
+  .api-url-input::placeholder { color: var(--muted); }
+
+  textarea {
+    width: 100%;
+    min-height: 160px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 16px 20px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,255,194,0.08);
+  }
+
+  textarea::placeholder { color: var(--muted); }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 14px;
+    padding: 14px 32px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,255,194,0.3);
+  }
+
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-primary.loading {
+    pointer-events: none;
+    opacity: 0.7;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--accent2);
+    color: var(--text);
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ERROR */
+  .error-box {
+    background: rgba(255,107,107,0.1);
+    border: 1px solid rgba(255,107,107,0.4);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    color: var(--accent3);
+    font-family: var(--mono);
+    font-size: 13px;
+    animation: fadeUp 0.3s ease both;
+  }
+
+  /* RESULTS */
+  .results {
+    display: none;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .results.visible { display: block; }
+
+  /* SUMMARY CARDS */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: center;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .stat-card:hover {
+    border-color: var(--accent2);
+    transform: translateY(-3px);
+  }
+
+  .stat-number {
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* SECTION */
+  .section {
+    margin-bottom: 32px;
+  }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* HIERARCHY CARDS */
+  .hierarchy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+
+  .hierarchy-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hierarchy-card:hover {
+    transform: translateY(-3px);
+  }
+
+  .hierarchy-card.cyclic {
+    border-color: rgba(255,107,107,0.3);
+  }
+
+  .hierarchy-card.cyclic:hover {
+    border-color: var(--accent3);
+  }
+
+  .hierarchy-card.tree {
+    border-color: rgba(0,255,194,0.15);
+  }
+
+  .hierarchy-card.tree:hover {
+    border-color: var(--accent);
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+  }
+
+  .root-node {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1;
+    font-family: var(--mono);
+  }
+
+  .tree .root-node { color: var(--accent); }
+  .cyclic .root-node { color: var(--accent3); }
+
+  .card-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 100px;
+  }
+
+  .tree .card-badge {
+    background: rgba(0,255,194,0.1);
+    color: var(--accent);
+    border: 1px solid rgba(0,255,194,0.2);
+  }
+
+  .cyclic .card-badge {
+    background: rgba(255,107,107,0.1);
+    color: var(--accent3);
+    border: 1px solid rgba(255,107,107,0.2);
+  }
+
+  .depth-row {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .depth-row span { color: var(--accent2); }
+
+  /* TREE VISUALIZATION */
+  .tree-visual {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+
+  .tree-node {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tree-indent { color: var(--border); }
+  .tree-connector { color: var(--accent2); }
+  .tree-label {
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .cyclic .tree-label { color: var(--accent3); }
+
+  /* TAGS */
+  .tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+  }
+
+  .tag.invalid {
+    border-color: rgba(255,107,107,0.3);
+    color: var(--accent3);
+    background: rgba(255,107,107,0.05);
+  }
+
+  .tag.duplicate {
+    border-color: rgba(255,200,0,0.3);
+    color: #ffd700;
+    background: rgba(255,200,0,0.05);
+  }
+
+  /* USER INFO */
+  .user-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .info-item label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .info-item p {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--accent2);
+  }
+
+  /* JSON TOGGLE */
+  .json-toggle {
+    margin-top: 32px;
+  }
+
+  .json-toggle summary {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .json-toggle summary:hover { color: var(--text); }
+  .json-toggle summary::before { content: '▶'; transition: transform 0.2s; }
+  .json-toggle[open] summary::before { transform: rotate(90deg); }
+
+  .json-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    overflow: auto;
+    max-height: 400px;
+    margin-top: 12px;
+    white-space: pre;
+    color: var(--text);
+  }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .api-url-row { flex-direction: column; }
+    .controls { flex-direction: column; }
+    .btn { text-align: center; }
+  }
+</style>
+</head>
+<body>
+<div class="glow-orb one"></div>
+<div class="glow-orb two"></div>
+
+<div class="container">
+  <header>
+    <div class="badge">SRM Full Stack Challenge</div>
+    <h1>BFHL Tree Explorer</h1>
+    <p class="subtitle">// Hierarchical Node Relationship Analyzer</p>
+  </header>
+
+  <div class="input-section">
+    <span class="input-label">▸ API Endpoint</span>
+    <div class="api-url-row">
+      <input type="text" class="api-url-input" id="apiUrl"
+        value="http://localhost:3000/bfhl"
+        placeholder="https://your-api.onrender.com/bfhl"/>
+    </div>
+
+    <span class="input-label">▸ Node Edges (one per line, comma-separated, or JSON array)</span>
+    <textarea id="nodeInput" placeholder='Enter edges like:
+A->B, A->C, B->D, C->E, E->F
+X->Y, Y->Z, Z->X
+P->Q, Q->R
+G->H, G->H, G->I
+hello, 1->2, A->'></textarea>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="submitBtn" onclick="submitData()">
+        ⟶ Analyze Nodes
+      </button>
+      <button class="btn btn-secondary" onclick="loadExample()">Load Example</button>
+      <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+    </div>
+  </div>
+
+  <div id="errorBox" class="error-box" style="display:none"></div>
+
+  <div id="results" class="results">
+    <!-- User Info -->
+    <div class="section">
+      <div class="section-title">Identity</div>
+      <div class="user-card" id="userCard"></div>
+    </div>
+
+    <!-- Summary -->
+    <div class="section">
+      <div class="section-title">Summary</div>
+      <div class="summary-grid" id="summaryGrid"></div>
+    </div>
+
+    <!-- Hierarchies -->
+    <div class="section">
+      <div class="section-title">Hierarchies</div>
+      <div class="hierarchy-grid" id="hierarchyGrid"></div>
+    </div>
+
+    <!-- Invalids & Duplicates -->
+    <div class="section" id="invalidSection">
+      <div class="section-title">Invalid Entries</div>
+      <div class="tags-row" id="invalidTags"></div>
+    </div>
+
+    <div class="section" id="dupSection">
+      <div class="section-title">Duplicate Edges</div>
+      <div class="tags-row" id="dupTags"></div>
+    </div>
+
+    <!-- Raw JSON -->
+    <details class="json-toggle">
+      <summary>Raw JSON Response</summary>
+      <pre class="json-block" id="rawJson"></pre>
+    </details>
+  </div>
+</div>
+
+<script>
+const EXAMPLE_DATA = [
+  "A->B","A->C","B->D","C->E","E->F",
+  "X->Y","Y->Z","Z->X",
+  "P->Q","Q->R",
+  "G->H","G->H","G->I",
+  "hello","1->2","A->"
+];
+
+function loadExample() {
+  document.getElementById('nodeInput').value = EXAMPLE_DATA.join(', ');
+}
+
+function clearAll() {
+  document.getElementById('nodeInput').value = '';
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('results').classList.remove('visible');
+}
+
+function parseInput(raw) {
+  const text = raw.trim();
+  if (!text) return [];
+  // Try JSON array
+  if (text.startsWith('[')) {
+    try { return JSON.parse(text); } catch(e) {}
+  }
+  // Split by comma or newline
+  return text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+}
+
+async function submitData() {
+  const btn = document.getElementById('submitBtn');
+  const errorBox = document.getElementById('errorBox');
+  const results = document.getElementById('results');
+
+  const raw = document.getElementById('nodeInput').value;
+  const data = parseInput(raw);
+  const apiUrl = document.getElementById('apiUrl').value.trim() || 'http://localhost:3000/bfhl';
+
+  errorBox.style.display = 'none';
+  results.classList.remove('visible');
+
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+
+  try {
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+
+    const json = await res.json();
+    renderResults(json);
+
+  } catch(err) {
+    errorBox.style.display = 'block';
+    errorBox.innerHTML = `⚠ API Error: ${err.message}`;
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = '⟶ Analyze Nodes';
+  }
+}
+
+function renderResults(data) {
+  // User Info
+  document.getElementById('userCard').innerHTML = `
+    <div class="info-item">
+      <label>User ID</label>
+      <p>${esc(data.user_id)}</p>
+    </div>
+    <div class="info-item">
+      <label>Email</label>
+      <p>${esc(data.email_id)}</p>
+    </div>
+    <div class="info-item">
+      <label>Roll Number</label>
+      <p>${esc(data.college_roll_number)}</p>
+    </div>
+  `;
+
+  // Summary
+  const s = data.summary || {};
+  document.getElementById('summaryGrid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-number">${s.total_trees ?? 0}</div>
+      <div class="stat-label">Valid Trees</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">${s.total_cycles ?? 0}</div>
+      <div class="stat-label">Cyclic Groups</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">${s.largest_tree_root || '—'}</div>
+      <div class="stat-label">Deepest Tree Root</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">${(data.hierarchies || []).length}</div>
+      <div class="stat-label">Total Groups</div>
+    </div>
+  `;
+
+  // Hierarchies
+  const hGrid = document.getElementById('hierarchyGrid');
+  const hierarchies = data.hierarchies || [];
+  if (hierarchies.length === 0) {
+    hGrid.innerHTML = '<div class="empty-state">No hierarchies found.</div>';
+  } else {
+    hGrid.innerHTML = hierarchies.map(h => {
+      const isCyclic = !!h.has_cycle;
+      const cls = isCyclic ? 'cyclic' : 'tree';
+      const badge = isCyclic ? '⟳ CYCLE' : '🌿 TREE';
+      const depthRow = !isCyclic ? `<div class="depth-row">depth: <span>${h.depth}</span></div>` : '';
+      const treeLines = !isCyclic && h.tree ? renderTreeLines(h.tree) : '<div style="color:var(--accent3);font-size:12px;">⟳ Contains cycle — no tree structure</div>';
+
+      return `
+        <div class="hierarchy-card ${cls}">
+          <div class="card-header">
+            <div class="root-node">${esc(h.root)}</div>
+            <div class="card-badge">${badge}</div>
+          </div>
+          ${depthRow}
+          <div class="tree-visual">${treeLines}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Invalid entries
+  const invalids = data.invalid_entries || [];
+  const invalidSection = document.getElementById('invalidSection');
+  if (invalids.length === 0) {
+    invalidSection.style.display = 'none';
+  } else {
+    invalidSection.style.display = '';
+    document.getElementById('invalidTags').innerHTML = invalids.map(e =>
+      `<span class="tag invalid">${esc(e) || '(empty)'}</span>`
+    ).join('');
+  }
+
+  // Duplicates
+  const dups = data.duplicate_edges || [];
+  const dupSection = document.getElementById('dupSection');
+  if (dups.length === 0) {
+    dupSection.style.display = 'none';
+  } else {
+    dupSection.style.display = '';
+    document.getElementById('dupTags').innerHTML = dups.map(e =>
+      `<span class="tag duplicate">${esc(e)}</span>`
+    ).join('');
+  }
+
+  // Raw JSON
+  document.getElementById('rawJson').textContent = JSON.stringify(data, null, 2);
+
+  document.getElementById('results').classList.add('visible');
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderTreeLines(tree, prefix='', isRoot=true) {
+  if (!tree || Object.keys(tree).length === 0) return '';
+  let html = '';
+
+  function walk(node, prefix, isLast) {
+    const connector = isLast ? '└── ' : '├── ';
+    const childPrefix = isLast ? '    ' : '│   ';
+    html += `<div class="tree-node">
+      <span class="tree-indent">${prefix}</span>
+      <span class="tree-connector">${connector}</span>
+      <span class="tree-label">${esc(node)}</span>
+    </div>`;
+    const children = Object.keys(treeMap[node] || {});
+    children.forEach((child, i) => {
+      walk(child, prefix + childPrefix, i === children.length - 1);
+    });
+  }
+
+  // Flatten tree to a map
+  const treeMap = {};
+  function flatten(obj) {
+    for (const [k, v] of Object.entries(obj)) {
+      treeMap[k] = v;
+      flatten(v);
+    }
+  }
+  flatten(tree);
+
+  const roots = Object.keys(tree);
+  roots.forEach((root, i) => {
+    html += `<div class="tree-node">
+      <span class="tree-label">${esc(root)}</span>
+    </div>`;
+    const children = Object.keys(treeMap[root] || {});
+    children.forEach((child, ci) => {
+      walk(child, '', ci === children.length - 1);
+    });
+  });
+
+  return html;
+}
+
+function esc(s) {
+  if (s === undefined || s === null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Allow Ctrl+Enter to submit
+document.getElementById('nodeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitData();
+});
+</script>
+</body>
+</html>
