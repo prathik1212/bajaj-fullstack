@@ -269,6 +269,7 @@
     font-family: var(--mono);
     font-size: 13px;
     animation: fadeUp 0.3s ease both;
+    display: none;
   }
 
   /* RESULTS */
@@ -522,6 +523,7 @@
     text-transform: uppercase;
     color: var(--muted);
     cursor: pointer;
+    -webkit-user-select: none;
     user-select: none;
     padding: 12px 0;
     border-top: 1px solid var(--border);
@@ -588,13 +590,13 @@
   </header>
 
   <div class="input-section">
-    <span class="input-label">▸ API Endpoint</span>
-    <div class="api-url-row">
-      <input type="text" class="api-url-input" id="apiUrl"
-        value="http://localhost:3000/bfhl"
-        placeholder="https://your-api.onrender.com/bfhl"/>
-    </div>
-
+  <span class="input-label">▸ API Endpoint</span>
+  <div class="api-url-row">
+    <input type="text" class="api-url-input" id="apiUrl"
+      value="https://bajaj-fullstack-evs9.onrender.com/bfhl"
+      placeholder="https://your-api.onrender.com/bfhl"/>
+  </div>
+</div>
     <span class="input-label">▸ Node Edges (one per line, comma-separated, or JSON array)</span>
     <textarea id="nodeInput" placeholder='Enter edges like:
 A->B, A->C, B->D, C->E, E->F
@@ -612,7 +614,7 @@ hello, 1->2, A->'></textarea>
     </div>
   </div>
 
-  <div id="errorBox" class="error-box" style="display:none"></div>
+  <div id="errorBox" class="error-box"></div>
 
   <div id="results" class="results">
     <!-- User Info -->
